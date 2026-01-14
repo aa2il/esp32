@@ -1,0 +1,10 @@
+[project]
+name = "esp32"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "esptool>=5.1.0",
+    "thonny>=4.1.7",
+]

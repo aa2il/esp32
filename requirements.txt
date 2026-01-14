@@ -1,0 +1,27 @@
+###############################################################################
+#
+# Adventures in microPython on the ESP32 ...
+#
+# Under uv:
+#     rm -r .venv/ pyproject.toml .python-version uv.lock
+#     uv init
+#     uv add -r requirements.txt
+#
+# To run thonny:
+#     cd into this dir
+#     uv run thonny &
+#
+# iMac USB Ports:
+#     SDR
+#     FTdx3000
+#     SS Drive
+#     4:1 Expansion port:
+#         - Keyer
+#         - Audio Codec for FTdx3000
+#         - Mouse
+#         - Keyboard
+#
+###############################################################################
+
+# IDE/Dev tools - not sure if we even need esptool
+# esptool

@@ -2,6 +2,25 @@
 
 Various programs/scripts to explore MicroPython on the ESP32.
 
+1) Install thonny and esptool:
+
+   uvinit
+
+2) Run Thonny and burn latest firmware - See 
+      
+   https://www.espboards.dev/blog/micropython-esp32-getting-started/
+   PDF is in this dir
+
+   uv run thonny
+
+3) Load up blinky.py and run it - it works!   
+
+4) C sketches and Arduino IDE still work with new firmware!
+
+###########################################################################
+
+OLD:
+
 Commands to install micro-python firmware:
 
 1) Go to micropython website and download latest firmaware

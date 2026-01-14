@@ -3,7 +3,7 @@
 from machine import Pin,Timer
 from time import sleep
 
-LED_PIN=2        # On-board pin
+LED_PIN=2                       # D2 is the On-board blue LED
 led = Pin(LED_PIN, Pin.OUT)
    
 # Callback (aka ISR) used with timer interrupt
