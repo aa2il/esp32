@@ -11,6 +11,16 @@
 #     cd into this dir
 #     uv run thonny &
 #
+# Need to try this:
+# Install ampy
+# pip install adafruit-ampy
+#
+# Upload a script named main.py to the device
+# ampy --port /dev/ttyUSB0 put main.py
+# 
+# Run the script on the device
+# ampy --port /dev/ttyUSB0 run main.py
+#
 # iMac USB Ports:
 #     SDR
 #     FTdx3000
@@ -23,5 +33,6 @@
 #
 ###############################################################################
 
-# IDE/Dev tools - not sure if we even need esptool
-# esptool
+# IDE/Dev tools
+thonny
+esptool
