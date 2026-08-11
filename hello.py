@@ -4,6 +4,8 @@ import sys
 import os
 #import psutil
 #import shutil
+import uselect
+import time
 
 # A very simple Hello World - Let's see what works with micropython - not much!
 
@@ -77,3 +79,33 @@ fp.write('Hello World!\n')
 fp.close()
 
                                         
+# Play with checking for stdin
+poller = uselect.poll()
+if 0:
+    poller.register(sys.stdin, uselect.POLLIN)           # Recommended
+else:
+    poller.register(sys.stdin.buffer, uselect.POLLIN)    # Bypass string encoding - best for binary data
+
+def check_stdin():
+    # Poll with a 0ms timeout (non-blocking check)
+    events = poller.poll(0)
+    
+    if events:
+        # Data is present; read one or more characters safely
+        if 0:
+            ch = sys.stdin.read(1)
+        else:
+           ch = sys.stdin.buffer.read(1)
+
+        print("Received:", ch,'\t',ord(ch))
+        return ch
+    return None
+
+# Example Main Loop
+print("Starting loop... Type something in the terminal.")
+while True:
+    check_stdin()
+    # Your background tasks (e.g., sensor reading, motor control) continue here
+    #time.sleep(0.1)
+
+
