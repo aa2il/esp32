@@ -6,6 +6,7 @@
 
 # Need to upload credentials.py to ESP32 first.  Easiest way ia to enable View->Files
 # and then right-click on This Computer->....->credentials.py -> Uploead To -> ...
+# Also must upload urequests2.py to / on ESP32.
 
 ################################################################################
 
@@ -95,7 +96,7 @@ def set_state(URL,key,onoff):
 
 ################################################################################
             
-# Here we go ... finally!
+# Here we go ... connect to yeti wireless server
 wlan=connect_to_wifi(SSID,PASSWORD)
 
 # Infinite loop to service requests from data aggregator
