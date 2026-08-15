@@ -46,7 +46,7 @@ HEADER = {
 }
 
 # Defs for Renogy Wander
-rtu_pins = (Pin(23), Pin(22))          # GPIO pins to use for UART TX and RX
+rtu_pins = (Pin(22), Pin(23))          # GPIO pins to use for UART TX and RX
 uart_id = 1
 
 # Target device address on the bus
