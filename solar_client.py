@@ -1,23 +1,30 @@
 ################################################################################
-
+#
 # renogy_client.py - Rev 1.0
 # Copyright (C) 2026 by Joseph B. Attili, joe DOT aa2il AT gmail DOT com
 #
 # This code combines the simple web clients for the Yeti GoalZero Battery
 # and Renogy Charge Controller.
-
+#
 # Use Thonny to upload code to ESP32 - Interpreter is for ESP32 VROOM varient
-
+#
 # Need to upload credentials2.py and urequests2.py to ESP32.
 # The easiest way to do this is to enable View->Files
 # and then right-click on This Computer->....->credentials2.py -> Uploead To /
-
+#
 # The ideas behiind the yeti i/o are from:    https://github.com/tkdrob/goalzero
 # The ideas behiind the renogy i/o are from:  https://github.com/wrybread/ESP32ArduinoRenogy
-
-# This repository also looks relavant:        https://github.com/rosswarren/renogymodbus
-# Need to check if Vcc is available from RJ12 connector
-
+#
+# These repositories also look relavant:
+#      https://github.com/rosswarren/renogymodbus
+#      https://github.com/cyrils/renogy-bt
+#      https://github.com/thomasabbott/wanderer
+#      https://platform.renogy.com/introduction/
+#
+# To Do:
+#    - Trap crashes when wanderer is unplugged (e.g. to change battery)
+#    - Test reading and setting battery type - seems to be 1-based instead of 0-based
+#
 ################################################################################
 
 # Needed for Yeti GZ I/O
@@ -51,6 +58,8 @@ uart_id = 1
 
 # Target device address on the bus
 slave_addr = 255
+
+BATTERY_TYPES=['?','OPEN','SEALED','GEL','LITHIUM','CUSTOM']
 
 ################################################################################
 
@@ -128,86 +137,179 @@ def set_state(URL,key,onoff):
 
 ################################################################################
 
+def uint16_to_bytes(registers,txt=None):
+    if txt!=None:
+        print(txt)
+        print(registers,type(registers))
+
+    if isinstance(registers,int):
+        registers=[registers]
+    elif isinstance(registers,tuple):
+        registers=list(registers)
+        
+    if txt!=None:
+        print(registers)
+        
+    b=[]
+    for reg in registers:
+        b.append( reg >> 8 )
+        b.append( reg & 255 )
+    return b
+
 # I/O functions for Renogy Wander
 # Messages are molded to conform to corresponding Yeti messages
-def get_reninfo():    
+def ren_get_info():    
     # Read info registers
     info_register_address = 0x00A
     num_info_registers = 17;
     info_registers = host.read_holding_registers(slave_addr,
                                                  info_register_address,
                                                  num_info_registers)
-    """
-    print("\nInfo Registers:", info_registers)
-
-    sw_version = str( info_registers[10] ) + '.' + str( info_registers[11] )
-    hw_version = str( info_registers[12] ) + '.' + str( info_registers[13] )
-    serial_number = str( info_registers[14] ) + ' ' + str( info_registers[15] )
-    print(sw_version)
-    print(hw_version)
-    print(serial_number)
-    """
-
-    sysinfo={ 'model' : 'Wanderer 10'}
-    print('data=',json.dumps(sysinfo))
     
+    # Convert 16-bit regs to bytes
+    b = uint16_to_bytes(info_registers)
+    #print('b=',b)
+    
+    model = ''.join(chr(i) for i in b[4:20])
+    sw_version = ''.join(str(i) for i in b[20:24])
+    hw_version = ''.join(str(i) for i in b[24:28])
+    serial_no  = ''.join(str(i) for i in b[28:32])
+    addr       = info_registers[16]      # This one is Read/Write
+    print(addr)
+
+    sysinfo={ 'model'        : model,
+              'swVersion'    : sw_version, 
+              'hwVersion'    : hw_version, 
+              'serialNumber' : serial_no,
+              'deviceAddr'   : addr,
+              'maxVoltage'   : b[0],
+              'ratedCurrent' : b[1],
+              'ratedDischargeCurrent' : b[2],
+              'productType'   : b[3]
+             }
+    
+    print('data=',json.dumps(sysinfo))
+
+    #raw_data=b[20:24]
+    #print(raw_data)
+
     return sysinfo
 
-def get_renstate():
+
+def ren_get_state():
     
     # Read data registers
     data_register_address = 0x100
-    num_data_registers = 35
-
+    num_data_registers = 10   # 35 - we only use the first 10 for now
     data_registers = host.read_holding_registers(slave_addr,
                                              data_register_address,
                                              num_data_registers)
     #print("Data Register:", data_registers)
+    
     battery_soc = data_registers[0] 
     battery_voltage = data_registers[1] * .1
     battery_charging_amps = data_registers[2] * .1
     battery_charging_watts = battery_voltage * battery_charging_amps
 
+    b = uint16_to_bytes(data_registers[3])
+    controller_temperature = b[0]
+    battery_temperature = b[1]
+    #print('b=',b)
+ 
     load_voltage = data_registers[4] * .1
-    load_amps = data_registers[5] * .01
+    load_current = data_registers[5] * .01
     load_watts = data_registers[6]
 
     solar_panel_voltage = data_registers[7]*.1
     solar_panel_amps = data_registers[8]*.01
-    solar_panel_watts = data_registers[9]
-
-    raw_data = data_registers[3]
-    controller_temperature = raw_data >> 8
-    battery_temperature = (raw_data & 255)
-    #print(hex(raw_data),hex(controller_temperature),hex(battery_temperature))
-    #controller_temperature = 1.8*controller_temperature +32
-    #battery_temperature = 1.8*battery_temperature +32
+    solar_panel_watts = data_registers[9] 
 
     if solar_panel_watts > load_watts:
         isCharging=1
     else:
         isCharging=0
-                
-    state={ 'volts' : battery_voltage,
-            'socPercent' : battery_soc,
-            'wattsIn': solar_panel_watts,
-            'wattsOut': load_watts,
-            'temperature' : controller_temperature,
-            'isCharging' : isCharging,
-            'v12PortStatus' : 0,
-            'usbPortStatus' : 0,
-            'acPortStatus' : 0}
-
-    if 0:
-        print('\nBattery Voltage   =\t',battery_voltage,' V')
-        print('Battery Charge    =\t',battery_soc,' %')
-        print('Panel Wattage     =\t',solar_panel_watts,' W')
-        print('Controller Temp   =\t',controller_temperature,' deg-C')
-        print('Battery Temp      =\t',battery_temperature,' deg-C')
+        
+    # There is a bunch more info available but I think this satisfies most of what I need for now
+    # except for the following
+    
+    # Read load and charging state
+    reg = host.read_holding_registers(slave_addr,0x0120,1)
+    b = uint16_to_bytes(reg)
+    load_on_off = ( b[0] & 0x80 ) >> 7
+    load_brightness = b[0] & 0xef
+    charging_state = b[1]
+    
+    # Might be useful to read fault/error info also
+    
+    # Some values are stored in EEPROM.  There are many of these
+    # but we'll only read the ones we're interested in for now
+    eeprom = host.read_holding_registers(slave_addr,0xe001,4)
+    b = uint16_to_bytes(eeprom)   # ,'eeprom')
+    #print('ee=',eeprom,b)
+    
+    dimming          = eeprom[0]
+    battery_capacity = eeprom[1]
+    #print('dim=',dimming,battery_capacity)
+    
+    sys_voltage = b[4]
+    rec_voltage = b[5]
+    #print('volts=',sys_voltage,rec_voltage)
+    
+    battery_type = BATTERY_TYPES[ eeprom[3] ]
+    #print('bt=',battery_type)
+           
+    state={ 'volts'           : battery_voltage,
+            'socPercent'      : battery_soc,
+            'wattsIn'         : solar_panel_watts,
+            'wattsOut'        : load_watts,
+            'isCharging'      : isCharging,
+            'chargingState'   : charging_state,
+            'temperature'     : controller_temperature,
+            'loadVoltage'     : load_voltage,
+            'loadCurrent'     : load_current,
+            'loadBrightness'  : load_brightness,
+            'dimming'         : dimming,
+            'sysVoltage'      : sys_voltage,
+            'recVoltage'      : rec_voltage,
+            'batteryType'     : battery_type,
+            'batteryCapacity' : battery_capacity,
+            'v12PortStatus'   : load_on_off,
+            'usbPortStatus'   : 0,
+            'acPortStatus'    : 0}
 
     print('data=',json.dumps(state))
 
     return state
+
+
+def ren_set_state(key,val):
+
+    if key=='deviceAddr':
+        # 0x001A is device address
+        addr=0x001A
+    elif key=='v12PortStatus':
+        # 0x010A is load on/off  - write only
+        addr=0x010A
+    elif key=='batteryType':
+        # 0xE004 is battery type 
+        addr=0xE004
+        if val.upper() in BATTERY_TYPES:
+            val=val.index(val.upper())
+        else:
+            print('\n*** REN_SET_STATE *** Invalid battery type',key,val)
+            return
+    else:
+        print('\n*** REN_SET_STATE *** Invalid key',key,val)
+
+    adu = host.write_single_register(slave_addr,addr,int(val))
+    #print('\nkey=',key,'\tval=',val,'\tadu=',adu)
+
+    time.sleep(1)
+    post=ren_get_state()
+    print('post=',post)
+    
+    return post
+
 
 ################################################################################
             
@@ -225,9 +327,23 @@ host = ModbusRTUMaster(
 )
 
 ################################################################################
-            
+
+# Devel and Test
+if 0:
+    #data=ren_get_info()
+    state=ren_get_state()
+    load = state['v12PortStatus']
+    print('load on off=',load)
+
+    adu=ren_set_state('v12PortStatus',1-load)
+    time.sleep(1)
+    state=ren_get_state()
+    load = state['v12PortStatus']
+    print('toggled load on off=',load)
+
 # Infinite loop to service requests from data aggregator
-while True:
+Done=False
+while not Done:
     cmd0=input("? ")
     cmd=cmd0.upper()
 
@@ -264,11 +380,22 @@ while True:
     
     # Renogy-related commands - need to add SET command (e.g. turn on/off "street light" load)
     elif cmd=='RENINFO':
-        data=get_reninfo()
+        data=ren_get_info()
         EOR()
 
     elif cmd=='RENSTATE':
-        data=get_renstate()
+        data=ren_get_state()
+        EOR()
+        
+    elif cmd[0:7]=='RENSET ':
+        a=cmd0.split(' ')
+        key=a[1]
+        status=a[2]
+        ren_set_state(key,status)
+        EOR()
+    
+    elif cmd=='EXIT':
+        Done=True
         EOR()
         
     else:
