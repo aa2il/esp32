@@ -282,7 +282,10 @@ def ren_get_state():
     return state
 
 
-def ren_set_state(key,val):
+def ren_set_state(key,val,VERBOSITY=0):
+
+    if VERBOSITY>0:
+        print('REN_SET_STATE: key=',key,'\tval=',val)
 
     if key=='deviceAddr':
         # 0x001A is device address
@@ -294,15 +297,18 @@ def ren_set_state(key,val):
         # 0xE004 is battery type 
         addr=0xE004
         if val.upper() in BATTERY_TYPES:
-            val=val.index(val.upper())
+            val=BATTERY_TYPES.index(val.upper())
         else:
             print('\n*** REN_SET_STATE *** Invalid battery type',key,val)
             return
     else:
         print('\n*** REN_SET_STATE *** Invalid key',key,val)
 
+    if VERBOSITY>0:
+        print('REN_SET_STATE: slave_addr=',slave_addr,'\taddr=',addr,'\tval=',val)
     adu = host.write_single_register(slave_addr,addr,int(val))
-    #print('\nkey=',key,'\tval=',val,'\tadu=',adu)
+    if VERBOSITY>0:
+        print('REN_SET_STATE: adu=',adu,'\tkey=',key,'\tval=',val)
 
     time.sleep(1)
     post=ren_get_state()
@@ -388,10 +394,11 @@ while not Done:
         EOR()
         
     elif cmd[0:7]=='RENSET ':
+        #print('RENSET: cmd0=',cmd0,' ...')
         a=cmd0.split(' ')
         key=a[1]
         status=a[2]
-        ren_set_state(key,status)
+        ren_set_state(key,status,VERBOSITY=0)
         EOR()
     
     elif cmd=='EXIT':
